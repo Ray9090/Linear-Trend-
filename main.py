@@ -408,3 +408,295 @@ print('Coefficients:', lr.coef_)
 print('Intercept:', lr.intercept_)
 print('Mean Squared Error:', mse)
 print('R-squared:', r_squared)
+
+
+##### again linear trend wiht box cox
+
+# load the dataset
+data = pd.read_csv(r"C:\Users\Q610267\Downloads\exd_download\Test-Interview\Test-Interview\30_2022_01_Greifer_Schritt510_Anforderung_bis_Endschalter.csv")
+
+# preprocess the data by taking the log of the s_step510_ms column
+data['s_step510_ms'] = np.log(data['s_step510_ms'])
+
+# create additional features
+data['step510_mean'] = data['step510'].rolling(window=10, min_periods=1).mean()
+data['step510_max'] = data['step510'].rolling(window=10, min_periods=1).max()
+data['step510_peak'] = signal.find_peaks(data['step510'], height=0)[0].size
+data['step510_rms'] = np.sqrt(np.mean(data['step510']**2))
+data['step510_var'] = data['step510'].rolling(window=10, min_periods=1).var()
+data['step510_std'] = data['step510'].rolling(window=10, min_periods=1).std()
+data['step510_power'] = np.sum(data['step510']**2) / len(data['step510'])
+data['step510_kurtosis'] = data['step510'].kurtosis()
+data['step510_skewness'] = data['step510'].skew()
+
+# remove any rows containing NaN or infinite values
+data.replace([np.inf, -np.inf], np.nan, inplace=True)
+data.dropna(inplace=True)
+
+# select the most important features using correlation analysis
+corr_matrix = data.corr()
+important_features = corr_matrix.index[abs(corr_matrix['step510']) >= 0.1]
+
+# split the dataset into training and testing sets using the selected features
+X_train, X_test, y_train, y_test = train_test_split(data[important_features], data['step510'], test_size=0.2, random_state=42)
+
+# fit a linear regression model on the training set
+lr = LinearRegression().fit(X_train, y_train)
+
+# transform the residuals using the Box-Cox transformation
+from scipy.stats import boxcox
+y_pred = lr.predict(X_test)
+residuals = y_test - y_pred
+
+# add a constant value to make the residuals positive
+residuals_min = np.abs(np.min(residuals)) + 0.1
+residuals_pos = residuals + residuals_min
+
+# transform the positive residuals using the Box-Cox transformation
+residuals_bc, lambda_ = boxcox(residuals_pos)
+
+# fit a linear regression model on the transformed residuals
+lr_res = LinearRegression().fit(X_test, residuals_bc)
+
+# evaluate the model on the testing set
+y_pred_res_bc = lr_res.predict(X_test)
+mse_res_bc = mean_squared_error(residuals_bc, y_pred_res_bc)
+r_squared_res_bc = lr_res.score(X_test, residuals_bc)
+
+# print the results
+print('Selected Features:', important_features)
+print('Coefficients:', lr_res.coef_)
+print('Intercept:', lr_res.intercept_)
+print('Mean Squared Error (Box-Cox transformed residuals):', mse_res_bc)
+print('R-squared (Box-Cox transformed residuals):', r_squared_res_bc)
+
+
+### linear trend Yeo Johson transformation
+
+# load the dataset
+data = pd.read_csv(r"C:\Users\Q610267\Downloads\exd_download\Test-Interview\Test-Interview\30_2022_01_Greifer_Schritt510_Anforderung_bis_Endschalter.csv")
+
+# preprocess the data by taking the log of the s_step510_ms column
+data['s_step510_ms'] = np.log(data['s_step510_ms'])
+
+# create additional features
+data['step510_mean'] = data['step510'].rolling(window=10, min_periods=1).mean()
+data['step510_max'] = data['step510'].rolling(window=10, min_periods=1).max()
+data['step510_peak'] = signal.find_peaks(data['step510'], height=0)[0].size
+data['step510_rms'] = np.sqrt(np.mean(data['step510']**2))
+data['step510_var'] = data['step510'].rolling(window=10, min_periods=1).var()
+data['step510_std'] = data['step510'].rolling(window=10, min_periods=1).std()
+data['step510_power'] = np.sum(data['step510']**2) / len(data['step510'])
+data['step510_kurtosis'] = data['step510'].kurtosis()
+data['step510_skewness'] = data['step510'].skew()
+
+# remove any rows containing NaN or infinite values
+data.replace([np.inf, -np.inf], np.nan, inplace=True)
+data.dropna(inplace=True)
+
+# select the most important features using correlation analysis
+corr_matrix = data.corr()
+important_features = corr_matrix.index[abs(corr_matrix['step510']) >= 0.1]
+
+# split the dataset into training and testing sets using the selected features
+X_train, X_test, y_train, y_test = train_test_split(data[important_features], data['step510'], test_size=0.2, random_state=42)
+
+# fit a linear regression model on the training set
+lr = LinearRegression().fit(X_train, y_train)
+
+# transform the residuals using the Yeo-Johnson transformation
+from sklearn.preprocessing import PowerTransformer
+pt = PowerTransformer(method='yeo-johnson', standardize=False)
+y_pred = lr.predict(X_test)
+residuals = y_test - y_pred
+residuals_yj = pt.fit_transform(residuals.values.reshape(-1, 1))
+
+# fit a linear regression model on the transformed residuals
+lr_res = LinearRegression().fit(X_test, residuals_yj)
+
+# evaluate the model on the testing set
+y_pred_res_yj = lr_res.predict(X_test)
+mse_res_yj = mean_squared_error(residuals_yj, y_pred_res_yj)
+r_squared_res_yj = lr_res.score(X_test, residuals_yj)
+
+# print the results
+print('Selected Features:', important_features)
+print('Coefficients:', lr_res.coef_)
+print('Intercept:', lr_res.intercept_)
+print('Mean Squared Error (Yeo-Johnson transformed residuals):', mse_res_yj)
+print('R-squared (Yeo-Johnson transformed residuals):', r_squared_res_yj)
+
+
+#### QuantileTransformer
+# load the dataset
+data = pd.read_csv(r"C:\Users\Q610267\Downloads\exd_download\Test-Interview\Test-Interview\30_2022_01_Greifer_Schritt510_Anforderung_bis_Endschalter.csv")
+
+# preprocess the data by taking the log of the s_step510_ms column
+data['s_step510_ms'] = np.log(data['s_step510_ms'])
+
+# create additional features
+data['step510_mean'] = data['step510'].rolling(window=10, min_periods=1).mean()
+data['step510_max'] = data['step510'].rolling(window=10, min_periods=1).max()
+data['step510_peak'] = signal.find_peaks(data['step510'], height=0)[0].size
+data['step510_rms'] = np.sqrt(np.mean(data['step510']**2))
+data['step510_var'] = data['step510'].rolling(window=10, min_periods=1).var()
+data['step510_std'] = data['step510'].rolling(window=10, min_periods=1).std()
+data['step510_power'] = np.sum(data['step510']**2) / len(data['step510'])
+data['step510_kurtosis'] = data['step510'].kurtosis()
+data['step510_skewness'] = data['step510'].skew()
+
+# remove any rows containing NaN or infinite values
+data.replace([np.inf, -np.inf], np.nan, inplace=True)
+data.dropna(inplace=True)
+
+# select the most important features using correlation analysis
+corr_matrix = data.corr()
+important_features = corr_matrix.index[abs(corr_matrix['step510']) >= 0.1]
+
+# split the dataset into training and testing sets using the selected features
+X_train, X_test, y_train, y_test = train_test_split(data[important_features], data['step510'], test_size=0.2, random_state=42)
+
+# fit a linear regression model on the training set
+lr = LinearRegression().fit(X_train, y_train)
+
+# transform the residuals using the QuantileTransformer
+from sklearn.preprocessing import QuantileTransformer
+qt = QuantileTransformer(output_distribution='normal')
+y_pred = lr.predict(X_test)
+residuals = y_test - y_pred
+residuals_qt = qt.fit_transform(residuals.values.reshape(-1, 1))
+
+# fit a linear regression model on the transformed residuals
+lr_res = LinearRegression().fit(X_test, residuals_qt)
+
+# evaluate the model on the testing set
+y_pred_res_qt = lr_res.predict(X_test)
+mse_res_qt = mean_squared_error(residuals_qt, y_pred_res_qt)
+r_squared_res_qt = lr_res.score(X_test, residuals_qt)
+
+# print the results
+print('Selected Features:', important_features)
+print('Coefficients:', lr_res.coef_)
+print('Intercept:', lr_res.intercept_)
+print('Mean Squared Error (Quantile transformed residuals):', mse_res_qt)
+print('R-squared (Quantile transformed residuals):', r_squared_res_qt)
+
+
+### logit transformation
+# load the dataset
+data = pd.read_csv(r"C:\Users\Q610267\Downloads\exd_download\Test-Interview\
+    Test-Interview\30_2022_01_Greifer_Schritt510_Anforderung_bis_Endschalter.csv")
+
+# preprocess the data by taking the log of the s_step510_ms column
+data['s_step510_ms'] = np.log(data['s_step510_ms'])
+
+# create additional features
+data['step510_mean'] = data['step510'].rolling(window=10, min_periods=1).mean()
+data['step510_max'] = data['step510'].rolling(window=10, min_periods=1).max()
+data['step510_peak'] = signal.find_peaks(data['step510'], height=0)[0].size
+data['step510_rms'] = np.sqrt(np.mean(data['step510']**2))
+data['step510_var'] = data['step510'].rolling(window=10, min_periods=1).var()
+data['step510_std'] = data['step510'].rolling(window=10, min_periods=1).std()
+data['step510_power'] = np.sum(data['step510']**2) / len(data['step510'])
+data['step510_kurtosis'] = data['step510'].kurtosis()
+data['step510_skewness'] = data['step510'].skew()
+
+# remove any rows containing NaN or infinite values
+data.replace([np.inf, -np.inf], np.nan, inplace=True)
+data.dropna(inplace=True)
+
+# select the most important features using correlation analysis
+corr_matrix = data.corr()
+important_features = corr_matrix.index[abs(corr_matrix['step510']) >= 0.1]
+
+# generate the X and y arrays from the preprocessed data
+X = data[important_features]
+y = data['step510']
+
+# split the arrays into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# fit a linear regression model on the training set
+lr = LinearRegression().fit(X_train, y_train)
+
+# transform the residuals using the logit transformation
+from scipy.special import logit
+y_pred = lr.predict(X_test)
+residuals = y_test - y_pred
+residuals_logit = logit(residuals[~np.isnan(residuals) & ~np.isinf(residuals)])
+
+# replace NaN and infinite values in residuals_logit with the mean value
+residuals_logit[np.isnan(residuals_logit) | np.isinf(residuals_logit)] = np.mean(residuals_logit[~np.isnan(residuals_logit) & ~np.isinf(residuals_logit)])
+
+# fit a linear regression model on the transformed residuals
+lr_res = LinearRegression().fit(X_test, residuals_logit)
+
+# evaluate the model on the testing set
+y_pred_res_logit = lr_res.predict(X_test)
+mse_res_logit = mean_squared_error(residuals_logit, y_pred_res_logit)
+r_squared_res_logit = lr_res.score(X_test, residuals_logit)
+
+# print the results
+print('Selected Features:', important_features)
+print('Coefficients:', lr_res.coef_)
+print('Intercept:', lr_res.intercept_)
+print('Mean Squared Error (logit transformed residuals):', mse_res_logit)
+print('R-squared (logit transformed residuals):', r_squared_res_logit)
+
+
+#### too remove out linears
+from scipy.stats import zscore
+
+# calculate the Z-score for each data point
+data['step510_zscore'] = zscore(data['step510'])
+
+# remove data points with a Z-score greater than 3 or less than -3
+data = data[(data['step510_zscore'] > -3) & (data['step510_zscore'] < 3)]
+
+
+##### plot with few features
+
+import pandas as pd
+import numpy as np
+from scipy.stats import zscore
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from scipy.special import inv_boxcox
+from scipy.stats import boxcox
+from scipy import signal
+import matplotlib.pyplot as plt
+
+
+# load the dataset
+data = pd.read_csv(r"C:\Users\Q610267\Downloads\exd_download\Test-Interview\Test-Interview\30_2022_01_Greifer_Schritt510_Anforderung_bis_Endschalter.csv")
+
+# preprocess the data by taking the log of the s_step510_ms column
+data['s_step510_ms'] = np.log(data['s_step510_ms'])
+
+# create a new feature that represents the time elapsed between consecutive cylinder openings
+data['time_elapsed'] = data['s_step510_ms'].diff().fillna(0)
+
+# create rolling statistics with a window size of 10 seconds
+window_size = 10000
+data['step510_mean'] = data['step510'].rolling(window_size).mean().fillna(0)
+data['step510_max'] = data['step510'].rolling(window_size).max().fillna(0)
+data['step510_var'] = data['step510'].rolling(window_size).var().fillna(0)
+
+# remove outliers using the Z-score method
+data['step510_zscore'] = zscore(data['step510'])
+data = data[(data['step510_zscore'] > -3) & (data['step510_zscore'] < 3)]
+
+# create a line plot of the trends
+fig, ax = plt.subplots(figsize=(12, 6))
+ax.plot(data['s_step510_ms'], data['step510'], label='Original Data', alpha=0.5)
+ax.plot(data['s_step510_ms'], data['step510_mean'], label='Rolling Mean ({} seconds)'.format(window_size/1000), linewidth=2)
+ax.plot(data['s_step510_ms'], data['step510_max'], label='Rolling Max ({} seconds)'.format(window_size/1000), linewidth=2)
+ax.set_xlabel('Time (log scale)')
+ax.set_ylabel('step510')
+ax.set_yscale('log')
+ax.set_xscale('log')
+ax.legend(loc='best')
+plt.show()
